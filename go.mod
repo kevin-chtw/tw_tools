@@ -1,8 +1,6 @@
-module github.com/kevin-chtw/tw_tools
+module github.com/kevin-chtw/tw_proto
 
 go 1.24.0
-
-replace github.com/kevin-chtw/tw_db_svr => ../tw_db_svr
 
 require (
 	github.com/kevin-chtw/tw_db_svr v0.0.0-00010101000000-000000000000
@@ -13,6 +11,8 @@ require (
 	gorm.io/driver/mysql v1.6.0
 	gorm.io/gorm v1.30.0
 )
+
+replace github.com/kevin-chtw/tw_db_svr => ../tw_db_svr
 
 require (
 	filippo.io/edwards25519 v1.1.0 // indirect

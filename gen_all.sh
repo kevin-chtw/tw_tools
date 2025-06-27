@@ -106,7 +106,7 @@ build_service() {
     log_info "Building $dir_name..."
     if CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -tags="$BUILD_TAGS" -o "$dir_name" 2>"$build_output_file"; then
         # 复制可执行文件
-        if ! cp "$dir_name" "$TARGET_BIN_DIR/"; then
+        if ! mv "$dir_name" "$TARGET_BIN_DIR/"; then
             log_error "Failed to copy binary $dir_name to $TARGET_BIN_DIR"
             build_status=1
         fi
