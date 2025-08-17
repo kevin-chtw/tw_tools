@@ -12,7 +12,7 @@ PARENT_DIR=$(dirname "$SCRIPT_DIR")
 
 # 配置参数
 TARGET_BIN_DIR="${PARENT_DIR}/bin"
-TARGET_ETC_DIR="${TARGET_BIN_DIR}/etc"
+TARGET_ETC_DIR="${TARGET_BIN_DIR}/"
 BUILD_TAGS="" # 可以根据需要设置编译标签
 # 限制并行任务数为CPU核心数的一半或最大8个，取较小值
 MAX_PROCS=$(( $(nproc) / 2 > 8 ? 8 : $(nproc) / 2 ))
@@ -113,8 +113,8 @@ build_service() {
 
         # 复制配置文件
         if [ -d "etc" ]; then
-            if find etc -maxdepth 1 -name "*.yaml" | grep -q .; then
-                if ! cp etc/*.yaml "$TARGET_ETC_DIR/"; then
+            if find etc -maxdepth 2 -name "*.yaml" | grep -q .; then
+                if ! cp -rf etc/ "$TARGET_ETC_DIR/"; then
                     log_warn "Failed to copy YAML files for $dir_name"
                 else
                     log_info "Copied YAML files for $dir_name"
