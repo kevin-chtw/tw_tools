@@ -9,11 +9,9 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PARENT_DIR=$(dirname "$SCRIPT_DIR")
 BIN_DIR="${PARENT_DIR}/bin"
-LOG_DIR="${PARENT_DIR}/logs"
 PID_DIR="${PARENT_DIR}/pids"
 
-# 确保日志和pid目录存在
-mkdir -p "$LOG_DIR"
+# 确保pid目录存在
 mkdir -p "$PID_DIR"
 
 # 获取所有服务
@@ -25,7 +23,6 @@ get_services() {
 start_service() {
     local svr_name="$1"
     local pid_file="${PID_DIR}/${svr_name}.pid"
-    local log_file="${LOG_DIR}/${svr_name}.log"
     
     if [ -f "$pid_file" ] && ps -p $(cat "$pid_file") > /dev/null 2>&1; then
         echo "Service $svr_name is already running (pid: $(cat "$pid_file"))"
@@ -34,7 +31,7 @@ start_service() {
     
     echo "Starting $svr_name..."
     cd "$BIN_DIR"
-    nohup "./${svr_name}" >> "$log_file" 2>&1 &
+    nohup "./${svr_name}" > /dev/null 2>&1 &
     local pid=$!
     cd - > /dev/null
     echo "$pid" > "$pid_file"
