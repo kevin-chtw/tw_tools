@@ -79,7 +79,6 @@ status_service() {
 
 # 主逻辑
 main() {
-    local action="${1:-status}"
     local services=$(get_services)
     
     if [ -z "$services" ]; then
@@ -87,34 +86,13 @@ main() {
         return 1
     fi
     
-    case "$action" in
-        start)
-            for svr in $services; do
-                start_service "$svr"
-            done
-            ;;
-        stop)
-            for svr in $services; do
-                stop_service "$svr"
-            done
-            ;;
-        restart)
-            for svr in $services; do
-                stop_service "$svr"
-                sleep 1
-                start_service "$svr"
-            done
-            ;;
-        status)
-            for svr in $services; do
-                status_service "$svr"
-            done
-            ;;
-        *)
-            echo "Usage: $0 [start|stop|restart|status]"
-            exit 1
-            ;;
-    esac
+    for svr in $services; do
+        stop_service "$svr"
+    done
+    ./gen_all.sh
+    for svr in $services; do
+        start_service "$svr"
+    done
 }
 
 main "$@"
