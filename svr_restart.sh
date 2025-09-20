@@ -90,6 +90,7 @@ main() {
         stop_service "$svr"
     done
     ./gen_all.sh
+    rm -rf ../bin/logs/
     for svr in $services; do
         start_service "$svr"
     done

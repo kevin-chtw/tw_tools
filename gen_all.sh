@@ -105,7 +105,8 @@ build_service() {
     # 编译服务
     log_info "Building $dir_name..."
     go mod tidy
-    if CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -tags="$BUILD_TAGS" -o "$dir_name" 2>"$build_output_file"; then
+    # if CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -tags="$BUILD_TAGS" -o "$dir_name" 2>"$build_output_file"; then
+    if CGO_ENABLED=0 GOOS=linux go build -gcflags="all=-N -l" -tags="$BUILD_TAGS" -o "$dir_name" 2>"$build_output_file"; then
         # 复制可执行文件
         if ! mv "$dir_name" "$TARGET_BIN_DIR/"; then
             log_error "Failed to copy binary $dir_name to $TARGET_BIN_DIR"
