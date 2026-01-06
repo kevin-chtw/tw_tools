@@ -89,7 +89,7 @@ main() {
     for svr in $services; do
         stop_service "$svr"
     done
-    ./gen_all.sh
+    "$SCRIPT_DIR/gen_all.sh"
     rm -rf ../bin/logs/
     for svr in $services; do
         start_service "$svr"
