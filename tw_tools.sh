@@ -63,25 +63,54 @@ stop_service() {
         return 0
     fi
 
-    local pid=$(cat "$pid_file")
+    local pid=$(cat "$pid_file" 2>/dev/null || echo "")
+    if [ -z "$pid" ]; then
+        echo "Service $svr_name has invalid pid file"
+        rm -f "$pid_file"
+        return 0
+    fi
+
     if ps -p "$pid" > /dev/null 2>&1; then
         echo "Stopping $svr_name (pid: $pid)..."
-        kill "$pid"
-        # 等待进程结束，最多等待10秒
-        local count=0
-        while [ $count -lt 10 ] && ps -p "$pid" > /dev/null 2>&1; do
-            sleep 1
-            ((count++))
-        done
-        if ps -p "$pid" > /dev/null 2>&1; then
-            echo "Force killing $svr_name (pid: $pid)..."
-            kill -9 "$pid"
+        if kill "$pid" 2>/dev/null; then
+            # 等待进程结束，最多等待5秒
+            local count=0
+            while [ $count -lt 5 ] && ps -p "$pid" > /dev/null 2>&1; do
+                sleep 1
+                count=$((count + 1))
+            done
+
+            if ps -p "$pid" > /dev/null 2>&1; then
+                echo "Graceful shutdown failed, force killing $svr_name (pid: $pid)..."
+                if kill -9 "$pid" 2>/dev/null; then
+                    # 等待强制杀死完成，最多等待3秒
+                    count=0
+                    while [ $count -lt 3 ] && ps -p "$pid" > /dev/null 2>&1; do
+                        sleep 1
+                        count=$((count + 1))
+                    done
+
+                    if ps -p "$pid" > /dev/null 2>&1; then
+                        echo "Warning: Failed to kill $svr_name (pid: $pid)"
+                    else
+                        echo "Force killed $svr_name"
+                    fi
+                else
+                    echo "Warning: Failed to force kill $svr_name (pid: $pid)"
+                fi
+            else
+                echo "Stopped $svr_name gracefully"
+            fi
+        else
+            echo "Warning: Failed to send kill signal to $svr_name (pid: $pid)"
         fi
-        rm -f "$pid_file"
-        echo "Stopped $svr_name"
     else
         echo "Service $svr_name is not running (stale pid file)"
-        rm -f "$pid_file"
+    fi
+
+    # 无论如何都要删除pid文件
+    if rm -f "$pid_file" 2>/dev/null; then
+        echo "Cleaned up pid file for $svr_name"
     fi
 }
 
