@@ -26,6 +26,7 @@ for /d %%d in ("%PARENT_DIR%\tw_*") do (
         set GOARCH=amd64
 
         cd /d "%%d"
+        go mod tidy
         go build -ldflags="-s -w" -o "%%~nd" 2>nul
 
         if exist "%%~nd" (
