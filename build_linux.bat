@@ -7,6 +7,7 @@ set "TARGET_BIN_DIR=%PARENT_DIR%\bin"
 
 :: Create target directory
 if not exist "%TARGET_BIN_DIR%" mkdir "%TARGET_BIN_DIR%"
+if not exist "%TARGET_BIN_DIR%\etc" mkdir "%TARGET_BIN_DIR%\etc"
 
 echo [INFO] Starting build process...
 
@@ -32,6 +33,10 @@ for /d %%d in ("%PARENT_DIR%\tw_*") do (
         if exist "%%~nd" (
             move "%%~nd" "%TARGET_BIN_DIR%\" >nul
             echo [INFO] Built %%~nd successfully
+            if exist "%%d\etc" (
+                echo [INFO] Copying %%~nd\etc to bin\etc\
+                xcopy "%%d\etc\*" "%TARGET_BIN_DIR%\etc\" /E /I /Y /Q >nul
+            )
         ) else (
             echo [ERROR] Failed to build %%~nd
         )
