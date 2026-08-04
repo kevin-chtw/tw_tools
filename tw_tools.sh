@@ -222,6 +222,8 @@ Description=${svr_name}
 After=network-online.target
 Wants=network-online.target
 OnFailure=tw-alert@%p.service
+StartLimitIntervalSec=120
+StartLimitBurst=5
 
 [Service]
 Type=simple
@@ -229,8 +231,6 @@ WorkingDirectory=${BIN_DIR}
 ExecStart=${BIN_DIR}/${svr_name}
 Restart=always
 RestartSec=3
-StartLimitIntervalSec=120
-StartLimitBurst=5
 KillMode=mixed
 TimeoutStopSec=15
 StandardOutput=append:${LOG_DIR}/${svr_name}.out
@@ -273,6 +273,10 @@ start_service() {
             return 0
         fi
         echo "Starting $svr_name (systemd)..."
+        # 刷新 unit 内容（兼容脚本升级，如 StartLimit 字段位置）
+        write_alert_unit
+        write_service_unit "$svr_name"
+        systemctl daemon-reload
         systemctl start "$(unit_name "$svr_name")"
         sync_pid_file "$svr_name"
         rm -f "${PID_DIR}/${svr_name}.maint"
