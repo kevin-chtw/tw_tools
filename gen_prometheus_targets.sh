@@ -67,10 +67,8 @@ while read -r service blue_port green_port rest; do
     fi
     case "$active_slot" in
         blue|green)
-            if unit_is_running "${service}-${active_slot}.service"; then
-                active_port="$(slot_port "$active_slot" "$blue_port" "$green_port")"
-                add_target "$service" "$active_slot" "$active_port" active
-            fi
+            active_port="$(slot_port "$active_slot" "$blue_port" "$green_port")"
+            add_target "$service" "$active_slot" "$active_port" active
             ;;
     esac
 
