@@ -122,6 +122,8 @@ Description=${service} ${slot}
 After=network-online.target
 Wants=network-online.target
 OnFailure=tw-alert@%p.service
+StartLimitIntervalSec=120
+StartLimitBurst=5
 
 [Service]
 Type=simple
@@ -136,8 +138,6 @@ ${service_port_env}
 ExecStart=${exec_start}
 Restart=always
 RestartSec=3
-StartLimitIntervalSec=120
-StartLimitBurst=5
 KillMode=mixed
 TimeoutStopSec=infinity
 StandardOutput=append:${LOG_DIR}/${service}-${slot}.out
