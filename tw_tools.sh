@@ -91,6 +91,16 @@ get_target_services() {
     fi
 }
 
+require_legacy_management() {
+    local svr_name="$1"
+    local slot_file="${PID_DIR}/${svr_name}.slot"
+    if [[ -f "$slot_file" ]]; then
+        echo "$svr_name is managed by rolling_update.sh (slot: $(cat "$slot_file"))" >&2
+        echo "refusing legacy tw_tools.sh start/stop operation" >&2
+        return 1
+    fi
+}
+
 # ---------- 飞书告警（内嵌） ----------
 
 load_alert_conf() {
@@ -259,6 +269,7 @@ EOF
 
 start_service() {
     local svr_name="$1"
+    require_legacy_management "$svr_name" || return 1
 
     # 有 systemd 时：未装 unit 则自动安装（需 root），已装则直接 start
     if has_systemd; then
@@ -289,6 +300,7 @@ start_service() {
 
 stop_service() {
     local svr_name="$1"
+    require_legacy_management "$svr_name" || return 1
     if unit_installed "$svr_name"; then
         echo "Stopping $svr_name (systemd)..."
         touch "${PID_DIR}/${svr_name}.maint"
@@ -320,6 +332,7 @@ status_service() {
 
 install_systemd_unit() {
     local svr_name="$1"
+    require_legacy_management "$svr_name" || return 1
     require_root_for_systemd
     has_systemd || { echo "当前系统不是 systemd" >&2; exit 1; }
     [[ -x "${BIN_DIR}/${svr_name}" ]] || { echo "二进制不存在或不可执行: ${BIN_DIR}/${svr_name}" >&2; exit 1; }
@@ -428,6 +441,7 @@ main() {
             ;;
         restart-svc|restart)
             for svr in $(get_target_services "$service_name"); do
+                require_legacy_management "$svr" || continue
                 # 未装 unit 时走 start（自动安装）；已装则 restart
                 if unit_installed "$svr"; then
                     systemctl restart "$(unit_name "$svr")"
