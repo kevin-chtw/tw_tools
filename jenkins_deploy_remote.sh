@@ -201,7 +201,13 @@ mkdir -p "$artifact_dir"
 cd "$source_dir"
 
 echo "building ${service} from ${source_dir}, target=${build_target}, host=${host}"
-go mod download
+GOWORK=off go mod download
+GOWORK=off go test ./... -count=1 -timeout="${GO_TEST_TIMEOUT:-120s}"
+if command -v golangci-lint >/dev/null 2>&1; then
+    GOWORK=off golangci-lint run
+else
+    echo "golangci-lint not found; skipping lint"
+fi
 GOWORK=off CGO_ENABLED="${CGO_ENABLED:-0}" go build \
     -trimpath \
     -buildvcs=false \
