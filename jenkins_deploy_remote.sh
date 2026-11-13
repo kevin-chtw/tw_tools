@@ -3,7 +3,7 @@
 set -euo pipefail
 
 usage() {
-    echo "usage: $0 <service> <source_dir> <host> [build_target] [base|gamebase] [blocking|async]" >&2
+    echo "usage: $0 <service> <source_dir> <host> [build_target] [base|gamebase|match] [blocking|async]" >&2
 }
 
 require_command() {
@@ -54,8 +54,24 @@ remote_metrics_port() {
 remote_drain_slot() {
     local host="$1" service="$2"
     remote_exec "$host" "if [ -f /pitaya/pids/${service}.drain ]; then
-        awk -F= '\$1 == \"old_slot\" { print \$2 }' /pitaya/pids/${service}.drain
+        old_slot=\$(awk -F= '\$1 == \"old_slot\" { print \$2 }' /pitaya/pids/${service}.drain)
+        old_unit=\$(awk -F= '\$1 == \"old_unit\" { print \$2 }' /pitaya/pids/${service}.drain)
+        state=\$(systemctl show -p ActiveState --value \"\$old_unit\" 2>/dev/null || true)
+        case \"\$state\" in
+            active|activating|deactivating) printf '%s\n' \"\$old_slot\" ;;
+        esac
     fi"
+}
+
+start_target_watcher() {
+    local service="$1" host="$2" active_port="$3" active_slot="$4" drain_slot="$5"
+    local unit="tw-drain-target-${service//_/-}-${drain_slot}-$(date +%s)"
+    sudo -n systemd-run \
+        --unit="$unit" \
+        --collect \
+        --quiet \
+        /pitaya/tw_tools/wait_drain_target.sh \
+        "$service" "$host" "$active_port" "$active_slot" "$drain_slot"
 }
 
 update_prometheus_target() {
@@ -72,6 +88,9 @@ update_prometheus_target() {
     remote_exec "$prometheus_host" "test -x /pitaya/tw_tools/update_prod_target.sh"
     remote_exec "$prometheus_host" \
         "/pitaya/tw_tools/update_prod_target.sh '${service}' '${host}' '${active_port}' '${active_slot}' '${drain_port}' '${drain_slot}'"
+    if [[ -n "$drain_slot" ]]; then
+        start_target_watcher "$service" "$host" "$active_port" "$active_slot" "$drain_slot"
+    fi
 }
 
 require_remote_metric() {
@@ -102,14 +121,24 @@ verify_remote_deployment() {
 
     if [[ "$profile" == "gamebase" ]]; then
         require_remote_metric "$metrics" \
-            '^pitaya_gamebase_draining(\{[^}]*\})?[[:space:]]+0$' \
-            'pitaya_gamebase_draining=0'
+            '^pitaya_game_drain(\{[^}]*\})?[[:space:]]+0$' \
+            'pitaya_game_drain=0'
         require_remote_metric "$metrics" \
-            '^pitaya_gamebase_active_tables(\{[^}]*\})?[[:space:]]+[0-9]+$' \
-            'pitaya_gamebase_active_tables present'
+            '^pitaya_game_tables(\{[^}]*\})?[[:space:]]+[0-9]+$' \
+            'pitaya_game_tables present'
         require_remote_metric "$metrics" \
-            '^pitaya_gamebase_players(\{[^}]*\})?[[:space:]]+[0-9]+$' \
-            'pitaya_gamebase_players present'
+            '^pitaya_game_players(\{[^}]*\})?[[:space:]]+[0-9]+$' \
+            'pitaya_game_players present'
+    elif [[ "$profile" == "match" ]]; then
+        require_remote_metric "$metrics" \
+            '^pitaya_match_drain(\{[^}]*\})?[[:space:]]+0$' \
+            'pitaya_match_drain=0'
+        require_remote_metric "$metrics" \
+            '^pitaya_match_tables(\{[^}]*\})?[[:space:]]+[0-9]+$' \
+            'pitaya_match_tables present'
+        require_remote_metric "$metrics" \
+            '^pitaya_match_players(\{[^}]*\})?[[:space:]]+[0-9]+$' \
+            'pitaya_match_players present'
     fi
 
     update_prometheus_target "$service" "$host"
@@ -140,7 +169,7 @@ drain_mode="${6:-blocking}"
     exit 1
 }
 case "$profile" in
-    base|gamebase) ;;
+    base|gamebase|match) ;;
     *)
         echo "invalid profile: ${profile}" >&2
         exit 1

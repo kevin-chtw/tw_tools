@@ -3,7 +3,7 @@
 set -euo pipefail
 
 usage() {
-    echo "usage: $0 <service> <source_dir> [build_target] [base|gamebase] [blocking|async]" >&2
+    echo "usage: $0 <service> <source_dir> [build_target] [base|gamebase|match] [blocking|async]" >&2
 }
 
 require_command() {
@@ -52,7 +52,7 @@ artifact="${artifact_dir}/${bin_name}"
     exit 1
 }
 case "$metric_profile" in
-    base|gamebase) ;;
+    base|gamebase|match) ;;
     *)
         echo "invalid metrics profile: ${metric_profile}" >&2
         exit 1
@@ -131,14 +131,24 @@ require_metric "$metrics" \
 
 if [[ "$metric_profile" == "gamebase" ]]; then
     require_metric "$metrics" \
-        '^pitaya_gamebase_draining(\{[^}]*\})?[[:space:]]+0$' \
-        'pitaya_gamebase_draining=0'
+        '^pitaya_game_drain(\{[^}]*\})?[[:space:]]+0$' \
+        'pitaya_game_drain=0'
     require_metric "$metrics" \
-        '^pitaya_gamebase_active_tables(\{[^}]*\})?[[:space:]]+[0-9]+$' \
-        'pitaya_gamebase_active_tables present'
+        '^pitaya_game_tables(\{[^}]*\})?[[:space:]]+[0-9]+$' \
+        'pitaya_game_tables present'
     require_metric "$metrics" \
-        '^pitaya_gamebase_players(\{[^}]*\})?[[:space:]]+[0-9]+$' \
-        'pitaya_gamebase_players present'
+        '^pitaya_game_players(\{[^}]*\})?[[:space:]]+[0-9]+$' \
+        'pitaya_game_players present'
+elif [[ "$metric_profile" == "match" ]]; then
+    require_metric "$metrics" \
+        '^pitaya_match_drain(\{[^}]*\})?[[:space:]]+0$' \
+        'pitaya_match_drain=0'
+    require_metric "$metrics" \
+        '^pitaya_match_tables(\{[^}]*\})?[[:space:]]+[0-9]+$' \
+        'pitaya_match_tables present'
+    require_metric "$metrics" \
+        '^pitaya_match_players(\{[^}]*\})?[[:space:]]+[0-9]+$' \
+        'pitaya_match_players present'
 fi
 
 echo "deployment verified: service=${service} slot=${slot} metricsPort=${port} drainMode=${drain_mode}"
