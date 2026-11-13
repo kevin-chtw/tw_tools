@@ -78,7 +78,7 @@ load_service_config() {
     }
     awk -v service="$service" '
         $1 == service && $1 !~ /^#/ {
-            if ($4 == "nginx") {
+            if ($4 == "nginx" || $4 == "maintenance-process") {
                 if (NF < 7) {
                     exit 2
                 }
@@ -183,7 +183,7 @@ wait_ready() {
             sleep 1
             continue
         fi
-        if curl -fsS --connect-timeout 1 --max-time 3 \
+        if [[ "$metrics_port" == "0" ]] || curl -fsS --connect-timeout 1 --max-time 3 \
             "http://127.0.0.1:${metrics_port}/readyz" >/dev/null 2>&1; then
             stable=$((stable + 1))
             if (( stable >= 3 )); then
@@ -451,6 +451,13 @@ rolling_update() {
                 return 1
             fi
             ;;
+        maintenance-process)
+            [[ -n "$blue_app" && -n "$green_app" ]] || {
+                echo "maintenance-process mode requires blue/green app ports" >&2
+                return 1
+            }
+            upstream_file=""
+            ;;
         *)
             echo "invalid mode for ${service}: ${mode}" >&2
             return 1
@@ -469,7 +476,7 @@ rolling_update() {
     candidate_unit="$(slot_unit "$service" "$candidate")"
     current_unit="$(slot_unit "$service" "$current")"
     candidate_metrics="$(slot_port "$candidate" "$blue_metrics" "$green_metrics")"
-    if [[ "$mode" == "nginx" ]]; then
+    if [[ "$mode" == "nginx" || "$mode" == "maintenance-process" ]]; then
         candidate_app="$(slot_port "$candidate" "$blue_app" "$green_app")"
         current_app="$(slot_port "$current" "$blue_app" "$green_app")"
     else
@@ -507,10 +514,10 @@ rolling_update() {
     write_slot_unit "$service" "$candidate" "$release_bin" "$candidate_metrics" "$candidate_app"
     systemctl daemon-reload
 
-    if [[ "$effective_mode" == "maintenance" ]] && (( legacy_active == 1 )); then
+    if [[ "$effective_mode" == "maintenance" || "$effective_mode" == "maintenance-process" ]] && (( legacy_active == 1 )); then
         echo "maintenance stop: legacy ${service}..."
         stop_legacy_process "$service" || return 1
-    elif [[ "$effective_mode" == "maintenance" ]] && [[ -f "${SYSTEMD_DIR}/$(unit_name "$current_unit")" ]]; then
+    elif [[ "$effective_mode" == "maintenance" || "$effective_mode" == "maintenance-process" ]] && [[ -f "${SYSTEMD_DIR}/$(unit_name "$current_unit")" ]]; then
         echo "maintenance stop: ${current_unit}..."
         systemctl stop "$(unit_name "$current_unit")" || {
             echo "failed to stop ${current_unit}" >&2

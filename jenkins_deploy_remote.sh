@@ -116,6 +116,18 @@ verify_remote_deployment() {
     echo "deployment verified: service=${service} host=${host} slot=${slot} metricsPort=${port} profile=${profile}"
 }
 
+deploy_artifact() {
+    local target_service="$1" target_artifact
+    target_artifact="/tmp/${target_service}.$$.new"
+    remote_scp "$artifact" "$host" "$target_artifact"
+    if [[ "$drain_mode" == "async" ]]; then
+        remote_exec "$host" "chmod 0755 '${target_artifact}' && /pitaya/tw_tools/rolling_update.sh --async-drain '${target_service}' '${target_artifact}'"
+    else
+        remote_exec "$host" "chmod 0755 '${target_artifact}' && /pitaya/tw_tools/rolling_update.sh '${target_service}' '${target_artifact}'"
+    fi
+    verify_remote_deployment "$target_service" "$host" "$profile"
+}
+
 service="${1:-}"
 source_dir="${2:-}"
 host="${3:-}"
@@ -155,7 +167,6 @@ remote_exec "$host" "test -f /pitaya/tw_tools/rolling_services.conf"
 
 artifact_dir="${ARTIFACT_DIR:-${WORKSPACE:-/tmp}/artifacts}"
 artifact="${artifact_dir}/${service}"
-remote_artifact="/tmp/${service}.$$.new"
 
 mkdir -p "$artifact_dir"
 cd "$source_dir"
@@ -170,11 +181,11 @@ GOWORK=off CGO_ENABLED="${CGO_ENABLED:-0}" go build \
     "$build_target"
 test -x "$artifact"
 
-remote_scp "$artifact" "$host" "$remote_artifact"
-if [[ "$drain_mode" == "async" ]]; then
-    remote_exec "$host" "chmod 0755 '${remote_artifact}' && /pitaya/tw_tools/rolling_update.sh --async-drain '${service}' '${remote_artifact}'"
-else
-    remote_exec "$host" "chmod 0755 '${remote_artifact}' && /pitaya/tw_tools/rolling_update.sh '${service}' '${remote_artifact}'"
-fi
-
-verify_remote_deployment "$service" "$host" "$profile"
+deploy_artifact "$service"
+for extra_service in ${DEPLOY_ALSO:-}; do
+    [[ "$extra_service" =~ ^[A-Za-z0-9_]+$ ]] || {
+        echo "invalid extra deploy service: ${extra_service}" >&2
+        exit 1
+    }
+    deploy_artifact "$extra_service"
+done
