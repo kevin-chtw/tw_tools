@@ -134,6 +134,7 @@ Environment=PITAYA_HEALTH_ENABLED=true
 Environment=PITAYA_HEALTH_PORT=${metrics_port}
 Environment=PITAYA_DRAIN_ENABLED=true
 Environment=PITAYA_DRAIN_UNLIMITED=true
+Environment=TW_LOG_SLOT=${slot}
 ${service_port_env}
 ExecStart=${exec_start}
 Restart=always
